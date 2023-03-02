@@ -92,19 +92,17 @@ else:
 # choose starting points near U
 
 pert = 0.01
-nopts = 5
-vals = pert*np.linspace(0, 1, nopts)[1:]
-
-nopts -= 1
+no_divs = 5
+delta = pert/no_divs
 
 v0_tspans = list()
-for ptD in range(nopts):
+for mD in range(no_divs):
 
-    for ptC in range(nopts-ptD):
+    for mC in range(no_divs-mD+1):
 
-        ptL = nopts-ptD-ptC-1
-        pts = [ptD, ptC, ptL]
-        v0 = [vals[i] for i in pts] + [1-pert]
+        mL = no_divs-mD-mC
+
+        v0 = [mD*delta, mC*delta, mL*delta, 1-pert]
         v0_tspans.append((v0, [0, 40]))
 
 print('finding trajectories')
