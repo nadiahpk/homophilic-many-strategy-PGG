@@ -20,7 +20,7 @@ from utilities import partitionInteger
 results_dir = '../../results/related2partprob/'
 
 # list of group sizes we wish to calculate for
-nV = [3, 4, 5, 6]
+nV = [3, 4, 5, 6, 7, 8]
 
 
 # coefficients for converting between r_rho and F_psi
@@ -32,7 +32,7 @@ for n in nV:
     # ---
 
     psisV = list(partitionInteger(n))
-    # -- [[1, 1, 1], [1, 2], [3]]
+    # -- e.g., n=3, psisV = [[1, 1, 1], [1, 2], [3]]
 
     # skip the first one
     psisV = psisV[1:]
@@ -40,6 +40,13 @@ for n in nV:
 
     # get a list of rhos
     # ---
+
+    # the rhos are all partitions in psisV above minus the elements equal to 1
+    rhosV = [[psi for psi in psis if psi != 1] for psis in psisV]
+    # -- e.g., n=3, rhosV = [[2], [3]]
+
+    '''
+    # another way to generate rhos, just for interest
 
     # the rhos are all partitions of integers 2 ... n
     # that don't have a 1 in them
@@ -61,6 +68,7 @@ for n in nV:
             rhosV.append(partn)
 
     # -- rhosV = [[2], [3]]
+    '''
 
 
     # create a big matrix to store
@@ -114,14 +122,16 @@ for n in nV:
     # the denominators
     D = [np.prod(range(n+1-sum(rhos), n+1)) for rhos in rhosV]
 
+    # matrix of probabilities
     P = M / np.tile(D, (num_psis, 1)).transpose()
 
     invP = np.linalg.inv(P)
 
-    # the inverse seems to be all whole numbers
+    # the inverse will be all whole numbers
+    # coefficients to convert in the reverse direction, from r_rho to F_psi
     invP_i = invP.astype(int)
 
-    # the greatest common divisor appears to be the leftmost nonzero term
+    # the greatest common divisor also appears as the leftmost nonzero term
     hcfs = [gcd(*V) for V in invP_i]
 
     # lets factor it out
@@ -135,23 +145,19 @@ for n in nV:
     header_psis = ['|'.join([str(v) for v in psis]) for psis in psisV]
     header_rhos = ['|'.join([str(v) for v in rhos]) for rhos in rhosV]
 
-
     # write coefficients for rho to psi conversion file
     df_psi = pd.DataFrame(header_psis, columns = ['psi'])
     df_hcf = pd.DataFrame(hcfs, columns = ['common_factor'])
     df_bod = pd.DataFrame(invP_factored, columns = header_rhos)
     df_final = pd.concat([df_psi, df_hcf, df_bod], axis=1)
-
     fname = results_dir + 'rho2psi_coeffs_n' + str(n) + '.csv'
     df_final.to_csv(fname, index=False)
 
     # write numerators matrix M to a file
-
     df_rho = pd.DataFrame(header_rhos, columns = ['rho'])   # the first column is the rho values
     df_fac = pd.DataFrame(D, columns = ['common_denom'])
-    df_bod = pd.DataFrame(M, columns = header_psis)             # body
-    df_final = pd.concat([df_rho, df_fac, df_bod], axis=1)              # put them together
-
+    df_bod = pd.DataFrame(M, columns = header_psis)         # body
+    df_final = pd.concat([df_rho, df_fac, df_bod], axis=1)  # put them together
     fname = results_dir + 'psi2rho_numerators_n' + str(n) + '.csv'
     df_final.to_csv(fname, index=False)
 
