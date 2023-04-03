@@ -21,9 +21,10 @@ n_nsV = [
         (4, 3), (4, 4), (4, 5),
         (5, 5), (5, 4), (5, 3), (6, 4), (6, 3), (6, 6),
         (7, 4), (7, 3), (7, 2), (8, 4), (8, 3), (9, 4), (9, 3),
-        (10, 4)
+        (10, 3), (10, 4),
         ]
 
+n_nsV = [(11,4), (11, 3)]
 
 
 # for each group size + number of strategies combination, calculate and store the matrices
