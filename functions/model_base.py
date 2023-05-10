@@ -1,6 +1,3 @@
-# TODO 
-# [ ] documentn for  def calc_stability(self, strat_ps, abs_tol=1e-10):
-
 import abc
 import pandas as pd
 import os
@@ -553,7 +550,8 @@ class ModelBase(metaclass=abc.ABCMeta):
 
     def calc_invasion_fitness(self, focal_name, strat_ps):
         '''
-        Calculate the invasion fitness of a strategy given population proportions of strategies.
+        Calculate the invasion fitness of a strategy given population proportions of other strategies
+        at steady state.
 
         Inputs:
         ---
@@ -608,7 +606,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         # payoffs
         if self.payoffD:
 
-            # retrive precalculated payoffs from dictionary
+            # retrieve precalculated payoffs from dictionary
             payoffM = [[self.payoffD[self.strat_names.index(stratV[0])][tuple([strat_counts[stratV.index(x)] if x in stratV else 0 for x in self.strat_names])] for strat_counts in full_strat_countsV] for stratV in stratM]
 
         else:
@@ -621,6 +619,8 @@ class ModelBase(metaclass=abc.ABCMeta):
             for payoff, Z in zip(payoffV, ZV) ) 
             for payoffV, ZV in zip(payoffM, ZM) )
 
+        # NOTE: this could be shortened by observing that the expected payoff for each strategy 
+        # is equal to the expected payoff at the steady state. Unecessary to take the average. TODO
 
         # calculate the P/p_focal
         # ----
@@ -668,7 +668,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         # get payoffs
         if self.payoffD:
 
-            # retrive precalculated payoffs from dictionary
+            stratV = stratM[focal_idx]
             payoffV = [self.payoffD[focal_idx][tuple([strat_counts[stratV.index(x)] if x in stratV else 0 for x in self.strat_names])] for strat_counts in full_strat_countsV]
 
         else:
@@ -688,14 +688,35 @@ class ModelBase(metaclass=abc.ABCMeta):
         return invasion_fitness
 
     def calc_stability(self, strat_ps, abs_tol=1e-10):
-        # TODO write documentn
+        '''
+        Use the Jacobian matrix to determine if a given steady state is stable.
+
+        Inputs:
+        ---
+
+        strat_ps, list of floats
+            The proportion of each strategy in the population at the steady state,
+            with values given in the same order as in strat_names
+
+        Outputs:
+        ---
+
+        ans, string
+            Returns 'stable' if the steady state is stable or 'unstable' if it is not.
+            If the leading eigenvalue is close to 0, the stability cannot be determined
+            from the linearised dynamics, and this function will return 'undetermined'
+        '''
 
         Jac = self.calc_jacobian(strat_ps)              # get the Jacobian
         max_eig = max(np.real(np.linalg.eig(Jac)[0]))   # maximum eigenvalue determines stability
 
         if abs(max_eig) <= abs_tol:
-            ans = 'neutral'
+
+            # if max eig is 0, stabiltiy can't be determined from linearised system
+            ans = 'undetermined'
+
         else:
+
             if max_eig < 0:
                 ans = 'stable'
             else: # elif max_eig > 0:

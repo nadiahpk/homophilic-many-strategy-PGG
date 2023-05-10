@@ -1,11 +1,10 @@
 # define the threshold game with options:
 #  U Unconditional Cooperator, 
 #  D Unconditional Defector, 
-#  C Conditional Cooperator, and 
+#  C Coordinating Cooperator, and 
 #  L Liar
 
 import numpy as np
-#import itertools as it
 from scipy.special import binom
 import sys
 

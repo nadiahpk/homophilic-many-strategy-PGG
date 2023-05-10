@@ -8,142 +8,12 @@ import pandas as pd
 
 from utilities import partitionInteger
 
-def tabulate_switching_gains(A, B, strat_names, strat_pairs):
-    '''
-    Returns latex tables of the switching gains for all pairs of strategies in strat_pairs for 
-    (1) in a well-mixed population, (2) with some homophily, (3) with perfect homophily
-
-    Inputs:
-    ---
-
-    A, symbolic matrix of size m^n
-
-        The payoff matrix where each dimension corresponds to an individual in the group, each 
-        index corresponds to the strategy played by the individual, and the leading index corresponds
-        the focal individual.
-
-    B, symbolic matrix of size m^n
-
-        The transformed payoff matrix.
-
-    strat_names, list of strings of length m
-
-        Name of each strategy, in order, with indices corresponding to indices of A and B.
-
-    strat_pairs, list of pairs
-
-        A list of strategies to calculate the switching gains 
-
-    Outputs:
-    ---
-
-    ltx, long string
-        
-        A series of latex of latex tables, one for each pair in strat_pairs
-    '''
-
-    # don't abbreviate my strings
-    pd.set_option('max_colwidth',10000)
-
-    # get the dimensions of A, which correspond to the no. individuals in the group and strategies in the game
-    A_shape = A.shape
-    n = len(A_shape)    # number of individuals in the group
-    m = A_shape[0]      # number of strategies in the game
-
-    # the number of partitions of n determine how many F parameters there are
-    partnV = list(partitionInteger(n))
-    num_partns = len(partnV)
-    partn_strV = ['[' + ','.join([str(v) for v in reversed(partn)]) + ']' for partn in partnV]
-
-    ltx_all = '' # we'll append the string here
-
-    for strat_pair in strat_pairs:
-
-        # get the focal- and other-strategy indices
-        foc, oth = strat_pair
-        k_idx, o_idx = [strat_names.index(strat_pair[i]) for i in range(2)]
-
-
-        # switching gains 
-
-        # well-mixed population
-        mix_dk, _, _ = calc_switching_gains(A, k_idx, o_idx)
-
-        # some homophily
-        hom_dk, _, _ = calc_switching_gains(B, k_idx, o_idx)
-
-        # tidy the dk expressions so the terms are grouped by F_i
-        hom_dk = [sp.collect(expr, [sp.Symbol('F_'+str(i)) for i in range(1, num_partns+1)]) 
-                for expr in hom_dk]
-
-        # perfect homophily
-        subsD = {'F_'+str(i): 0 for i in range(1, num_partns)} # all F_i = 0 except F_{num_partns}
-        subsD['F_'+str(num_partns)] = 1
-        per_dk = [expr.subs(subsD) for expr in hom_dk]
-
-
-        # create latex table
-
-        # write as latex strings
-        mix_dk = [clean_latex_expr(expr) for expr in mix_dk]
-        hom_dk = [clean_latex_expr(expr, partn_strV) for expr in hom_dk]
-        per_dk = [clean_latex_expr(expr) for expr in per_dk]
-
-        # create the string of signs (will need to address by hand)
-        sgns = ['$+/-$' for i in range(n)]
-
-        # the list of k values
-        kV = list(range(n))
-
-        # put into a dataframe
-        columns = ['$k$', 'expression', 'sign', 'expression', 'sign', 'expression', 'sign']
-        df = pd.DataFrame(list(zip(kV, mix_dk, sgns, hom_dk, sgns, per_dk, sgns)), columns=columns)
-
-        caption = f'Switching gains $d_k$ for {foc} versus {oth} where $k$ is the number of {foc}-strategists among the $n-1$ non-focal group members.'
-        label = f'switch_{foc}_{oth}'
-        ltx = df.to_latex(index=False, escape=False, column_format='|c|c|c|c|c|c|c|', caption=caption, label=label)
-
-        # tidy up latex table directly
-        ltx = ltx.replace("\\begin{table}", "\\begin{table}[h]")
-        ltx = ltx.replace("\\midrule", "\\hline")
-        ltx = ltx.replace("\\bottomrule", "\\hline")
-
-        # use "\toprule" as an opportunity to put in the more complex headings
-        complex_heading = "\\hline \n & \\multicolumn{2}{c|}{\\bf well-mixed} & \\multicolumn{2}{c|}{\\bf some homophily} & \\multicolumn{2}{c|}{\\bf perfect homophily} \\\\ \n \\cline{2-7}"
-        ltx = ltx.replace("\\toprule", complex_heading)
-
-        # append to big string
-        ltx_all += ltx
-        ltx_all += '\n'
-
-    return ltx_all
-        
-
-def clean_latex_expr(expr, partn_strV=None):
-    '''
-    Just a utility to turn latex expressions into the kinds of strings I'll use for
-    my table
-    '''
-
-    expr = '$' + sp.latex(expr).replace(' ','') + '$' 
-
-    if not partn_strV is None:
-
-        for idx, partn_str in enumerate(partn_strV):
-
-            oldF = 'F_{' + str(idx+1) + '}'
-            newF = 'F_{' + partn_str + '}'
-            expr = expr.replace(oldF, newF)
-
-    return expr
-
-
 
 def calc_switching_gains(A, k_idx, o_idx):
     '''
     Calculate symbolic expressions for the switching gain for each k = 0, ..., n-1,
     where k is the number of nonfocal individuals pursuing strategy s_{k_idx}
-    against n-1-k individuals pursuing strategy s_{o_idx}. Thes switching gains can
+    against n-1-k individuals pursuing strategy s_{o_idx}. These switching gains can
     give qualitative insights into the dynamics between the two strategies,
     as described in Peña et al. (2014, J Theor Biol).
 
@@ -277,6 +147,7 @@ def create_payoff_matrix(n, m, pi):
 
     return A
 
+
 def create_transformed_payoff_matrix(A):
     '''
     Create the transformed payoff matrix that will produce the same dynamics in a well-mixed population
@@ -373,3 +244,135 @@ def create_transformed_payoff_matrix(A):
                 B[idxs] = payoff
 
     return B
+
+
+def tabulate_switching_gains(A, B, strat_names, strat_pairs):
+    '''
+    Returns latex tables of the switching gains for all pairs of strategies in strat_pairs for 
+    (1) in a well-mixed population, (2) with some homophily, (3) with perfect homophily
+
+    Inputs:
+    ---
+
+    A, symbolic matrix of size m^n
+
+        The payoff matrix where each dimension corresponds to an individual in the group, each 
+        index corresponds to the strategy played by the individual, and the leading index corresponds
+        the focal individual.
+
+    B, symbolic matrix of size m^n
+
+        The transformed payoff matrix.
+
+    strat_names, list of strings of length m
+
+        Name of each strategy, in order, with indices corresponding to indices of A and B.
+
+    strat_pairs, list of pairs
+
+        A list of strategies to calculate the switching gains 
+
+    Outputs:
+    ---
+
+    ltx, long string
+        
+        A series of latex of latex tables, one for each pair in strat_pairs
+    '''
+
+    # don't abbreviate my strings
+    pd.set_option('max_colwidth',10000)
+
+    # get the dimensions of A, which correspond to the no. individuals in the group and strategies in the game
+    A_shape = A.shape
+    n = len(A_shape)    # number of individuals in the group
+    m = A_shape[0]      # number of strategies in the game
+
+    # the number of partitions of n determine how many F parameters there are
+    partnV = list(partitionInteger(n))
+    num_partns = len(partnV)
+    partn_strV = ['[' + ','.join([str(v) for v in reversed(partn)]) + ']' for partn in partnV]
+
+    ltx_all = '' # we'll append the string here
+
+    for strat_pair in strat_pairs:
+
+        # get the focal- and other-strategy indices
+        foc, oth = strat_pair
+        k_idx, o_idx = [strat_names.index(strat_pair[i]) for i in range(2)]
+
+
+        # switching gains 
+
+        # well-mixed population
+        mix_dk, _, _ = calc_switching_gains(A, k_idx, o_idx)
+
+        # some homophily
+        hom_dk, _, _ = calc_switching_gains(B, k_idx, o_idx)
+
+        # tidy the dk expressions so the terms are grouped by F_i
+        hom_dk = [sp.collect(expr, [sp.Symbol('F_'+str(i)) for i in range(1, num_partns+1)]) 
+                for expr in hom_dk]
+
+        # perfect homophily
+        subsD = {'F_'+str(i): 0 for i in range(1, num_partns)} # all F_i = 0 except F_{num_partns}
+        subsD['F_'+str(num_partns)] = 1
+        per_dk = [expr.subs(subsD) for expr in hom_dk]
+
+
+        # create latex table
+
+        # write as latex strings
+        mix_dk = [clean_latex_expr(expr) for expr in mix_dk]
+        hom_dk = [clean_latex_expr(expr, partn_strV) for expr in hom_dk]
+        per_dk = [clean_latex_expr(expr) for expr in per_dk]
+
+        # create the string of signs (will need to address by hand)
+        sgns = ['$+/-$' for i in range(n)]
+
+        # the list of k values
+        kV = list(range(n))
+
+        # put into a dataframe
+        columns = ['$k$', 'expression', 'sign', 'expression', 'sign', 'expression', 'sign']
+        df = pd.DataFrame(list(zip(kV, mix_dk, sgns, hom_dk, sgns, per_dk, sgns)), columns=columns)
+
+        caption = f'Switching gains $d_k$ for {foc} versus {oth} where $k$ is the number of {foc}-strategists among the $n-1$ non-focal group members.'
+        label = f'switch_{foc}_{oth}'
+        ltx = df.to_latex(index=False, escape=False, column_format='|c|c|c|c|c|c|c|', caption=caption, label=label)
+
+        # tidy up latex table directly
+        ltx = ltx.replace("\\begin{table}", "\\begin{table}[h]")
+        ltx = ltx.replace("\\midrule", "\\hline")
+        ltx = ltx.replace("\\bottomrule", "\\hline")
+
+        # use "\toprule" as an opportunity to put in the more complex headings
+        complex_heading = "\\hline \n & \\multicolumn{2}{c|}{\\bf well-mixed} & \\multicolumn{2}{c|}{\\bf some homophily} & \\multicolumn{2}{c|}{\\bf perfect homophily} \\\\ \n \\cline{2-7}"
+        ltx = ltx.replace("\\toprule", complex_heading)
+
+        # append to big string
+        ltx_all += ltx
+        ltx_all += '\n'
+
+    return ltx_all
+        
+
+def clean_latex_expr(expr, partn_strV=None):
+    '''
+    Just a utility to turn latex expressions into the kinds of strings I'll use for
+    my Latex table. Called by tabulate_switching_gains().
+    '''
+
+    expr = '$' + sp.latex(expr).replace(' ','') + '$' 
+
+    if not partn_strV is None:
+
+        for idx, partn_str in enumerate(partn_strV):
+
+            oldF = 'F_{' + str(idx+1) + '}'
+            newF = 'F_{' + partn_str + '}'
+            expr = expr.replace(oldF, newF)
+
+    return expr
+
+
