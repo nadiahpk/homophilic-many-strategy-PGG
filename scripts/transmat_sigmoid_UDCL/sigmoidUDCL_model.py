@@ -1,19 +1,17 @@
-# define the sigmoid game with options:
+# define the sigmoid game with strategies:
 #  U Unconditional Cooperator, 
 #  D Unconditional Defector, 
 #  C Conditional Cooperator, and 
 #  L Liar
 
 import numpy as np
-#import itertools as it
 from scipy.special import binom
 import sys
 
 sys.path.append('../../functions/')
-from model_base import ModelBase
+from transmat_base import TransmatBase
 
-# create the lottery model building on ModelBase
-class SigmoidUDCL(ModelBase):
+class SigmoidUDCL(TransmatBase):
 
     def __init__(self, *args, **kwargs):
 
@@ -33,68 +31,30 @@ class SigmoidUDCL(ModelBase):
         return s
 
 
-    def payoff(self, strats, strat_counts):
-        '''
-        A sigmoid benefits function (inspired by Archetti (2018; Games)) combined with straw-drawing.
-
-        Inputs:
-        ---
-
-        strats, list of str
-            A list of the strategy names in the same order as strat_counts.
-            Index 0 in strats is treated as the focal strategy.
-
-        strat_counts, list of ints
-            How many individuals in the group are pursuing which strategies.
-            e.g., if strats = ['U', 'D', 'L'] and strat_counts = [2, 1, 3]
-            then the group has 2 Unconditional Cooperators, 1 Unconditional Defector, and 3 Liars.
-
-        Outputs:
-        ---
-
-        payoff, float
-            Payoff to and individual playing the focal strategy (strats[0])
-            (cooperators in example above) given the distribution of strategies in strat_counts
-        '''
-
+    def calc_payoff(self, focal_strat_idx, strat_counts):
 
         # parameters to set up game
         # ---
 
-        # unpack needed parameters
-        n = self.n
-
-        # unpack needed parameters
-        tau = self.game_pars['tau'] # both quorum and inflection point (midpoint) of the benefits function
-        steep = self.game_pars['steep'] # steepness of the sigmoid (s = 0 equiv to linear game, s = \infty a threshold game)
+        n = self.n                      # group size
+        tau = self.game_pars['tau']     # both quorum and inflection point of benefits function
+        steep = self.game_pars['steep'] # steepness of the sigmoid (s = 0 is a linear game, s = infty a threshold game)
 
         cognitive_cost = self.game_pars['cognitive_cost']
         contrib_cost = self.game_pars['contrib_cost']
 
-        focal_strat = strats[0]
+        focal_strat = self.game_pars['strat_names'][focal_strat_idx]
 
         # benefit from the public good given that k are contributors (inspired by Archetti's function Eq. 9 & 10)
         L = lambda k: 1 / (1 + np.exp(steep*(tau-0.5-k)/n))
 
 
-        # check we got sensible inputs
-        # ---
-
-        assert(sum(strat_counts) == n)
-        assert(strat_counts[0] > 0)
-
-
         # calculate the payoff to the focal
         # ---
 
-        # count the number of each strategy in the group
-
-        countDict = dict(zip(strats, strat_counts))
-        countU = 0 if 'U' not in countDict else countDict['U'] # Unconditional Cooperators
-        countD = 0 if 'D' not in countDict else countDict['D'] # Unconditional Defectors
-        countC = 0 if 'C' not in countDict else countDict['C'] # Coordinating Cooperators
-        countL = 0 if 'L' not in countDict else countDict['L'] # Liars
-
+        # count strategies in group
+        strat_idxs = [self.strat_names.index('D'), self.strat_names.index('C'), self.strat_names.index('L'), self.strat_names.index('U')]
+        countD, countC, countL, countU = [strat_counts[idx] for idx in strat_idxs]
 
         # payoff calculation depends on if lottery quorum is met
 
@@ -143,3 +103,5 @@ class SigmoidUDCL(ModelBase):
                 payoff_total = sum(Pj*benefitj for Pj, benefitj in zip(PjV, benefitjV)) + cognitive_cost
 
         return payoff_total
+
+
