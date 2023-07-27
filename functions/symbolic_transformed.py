@@ -13,7 +13,8 @@ def calc_switching_gains(A, k_idx, o_idx):
     '''
     Calculate symbolic expressions for the switching gain for each k = 0, ..., n-1,
     where k is the number of nonfocal individuals pursuing strategy s_{k_idx}
-    against n-1-k individuals pursuing strategy s_{o_idx}. These switching gains can
+    against n-1-k individuals pursuing strategy s_{o_idx}. Thus, we are calculating
+    the switching gains from s_{o_idx} to s_{k_idx}. These switching gains can
     give qualitative insights into the dynamics between the two strategies,
     as described in Peña et al. (2014, J Theor Biol).
 
@@ -376,3 +377,79 @@ def clean_latex_expr(expr, partn_strV=None):
     return expr
 
 
+def calc_invasion_fitness_terms(B, co1, co2, inv, num_partns=None):
+    '''
+    Calculates the $h_k$ terms that determine the invasion fitness of a strategy
+    "inv" invading a coexistence between two strategies, "co1" and "co2". 
+    Specifically, letting the invader have index 3, the invasion fitness is
+
+    \sum_{k=0}^{n-1} 
+        h_k \mathbb{P}[\bs{\gt}_{\nf} = k \bs{e}_1 + (n-1-k) \bs{e}_2 \mid \bs{p}^{*}]
+
+    More positive values of $h_k$ mean it's easier for strategy "inv" to invade, and
+    a sufficient (but not necessary) condition for "inv" to successfully invade
+    is that every $h_k$ term is positive. Two sets of $h_k$ values are possible
+    depending on whether the fitness comparison is made to "co1" or "co2", and
+    $k$ refers to the number of "co1" or "co2" in the group, respectively.
+
+
+    Inputs:
+    ---
+
+    B, symbolic matrix of size m^n
+        The transformed payoff matrix.
+
+    co1, integer
+        Index of first strategy in the coexistence.
+
+    co2, integer
+        Index of second strategy in the coexistence.
+
+    inv, integer
+        Index of the strategy that is invading the coexistence co1+co2
+
+
+    Outputs:
+    ---
+
+    h1V, list of symbolic expressions
+        The h_k terms when the comparison is made to strategy "co1",
+        where k is the number of "co1" players in the group.
+
+    h2V, list of symbolic expressions
+        The h_k terms when the comparison is made to strategy "co2",
+        where k is the number of "co2" players in the group.
+    '''
+
+
+    # extract basic info about the game
+    # ---
+
+    n = len(B.shape)    # number of individuals in the group
+
+    if num_partns is None:
+        # the number of partitions of n determine how many F parameters there are
+        partnV = list(partitionInteger(n))
+        num_partns = len(partnV)
+
+
+    # calculate invasion terms
+    # ---
+
+    hom_dk, pi_co1V, pi_co2V = calc_switching_gains(B, co1, co2)
+    nonfoc_idxsV = [[co1]*k + [co2]*(n-1-k) for k in range(n)]
+    whole_idxsV = [tuple([inv] + nonfoc_idxs) for nonfoc_idxs in nonfoc_idxsV]
+    pi_invV = [B[idxs] for idxs in whole_idxsV]
+
+    # write as differences with coexisting-strategy 1
+    h1V = [pi_inv - pi_co1 for pi_co1, pi_inv in zip(pi_co1V, pi_invV)]
+    h1V = [sp.collect(hk, [sp.Symbol('F_'+str(i)) for i in range(1, num_partns+1)]) for hk in h1V]
+
+    # write as differences with coexisting-strategy 2
+    h2V = [pi_inv - pi_co2 for pi_co2, pi_inv in zip(pi_co2V, pi_invV)]
+    h2V = [sp.collect(hk, [sp.Symbol('F_'+str(i)) for i in range(1, num_partns+1)]) for hk in h2V]
+
+    # reverse order so index k refers to how many strategy-2 are in the group
+    h2V.reverse()
+
+    return (h1V, h2V)
