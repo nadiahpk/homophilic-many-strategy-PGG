@@ -96,4 +96,4 @@ for n in range(n_min, n_max+1):
 # ---
 
 df = pd.DataFrame(time_takens, columns=['group_size', 'transmat_overhead', 'transmat_steadystate', 'newdirect_total'])
-df.to_csv(results_dir + 'time_taken.csv', index=False)
+df.to_csv(results_dir + 'steadystate_time_taken.csv', index=False)

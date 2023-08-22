@@ -10,7 +10,7 @@ import pandas as pd
 
 # where the results are stored
 results_dir = '../../results/compute_time/'
-results_fname = 'time_taken.csv'
+results_fname = 'steadystate_time_taken.csv'
 
 
 # create plot
@@ -42,5 +42,5 @@ plt.xlabel('group size $n$', fontsize='x-large')
 plt.ylabel('computation time (s)', fontsize='x-large')
 
 plt.tight_layout()
-plt.savefig(results_dir + 'time_taken.pdf')
+plt.savefig(results_dir + 'steadystate_time_taken.pdf')
 plt.close('all')
