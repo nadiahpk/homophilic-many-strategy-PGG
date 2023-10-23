@@ -16,6 +16,7 @@ from sigmoidUDCL_model import SigmoidUDCL
 ngrid = 9 # number of points on each axis
 results_dir = '../../results/sigmoid_UDCL/'
 qV = [0.81, 0.89, 0.8962, 0.8970, 1] # NOTE list of homophily parameters goes here
+qV = [0.12]
 
 
 # model parameters

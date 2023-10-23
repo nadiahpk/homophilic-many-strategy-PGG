@@ -15,7 +15,10 @@ from utilities import partitionInteger
 # ---
 
 # a list of group sizes and number of strategies to calculate, (group_size, no_strategies)
-n_nsV = [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9)]
+# n_nsV = [(3, 9), (4, 9), (5, 9), (6, 9), (7, 9), (8, 9), (9, 9)]
+# n_nsV = [(4, 2)]
+n_nsV = [(5, 2)]
+n_nsV = [(10, 2)]
 
 
 # for each group size + number of strategies combination, calculate and store the matrices

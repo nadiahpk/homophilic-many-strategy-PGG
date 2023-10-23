@@ -63,7 +63,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         self.strat_names = game_pars['strat_names']
 
 
-        # get the stored variables C and W matrices to convert F -> Z
+        # get the stored variables C and W matrices to convert F -> H
         # ---
 
         partn2prob_dir = evol_pars['partn2prob_dir']
@@ -435,14 +435,15 @@ class ModelBase(metaclass=abc.ABCMeta):
                      for focal_idx in range(n_s)]
 
         # population proportions of strategies
+        # this reindexes p so the focal strategy is always first in the vector
         pM = [[strat_ps[focal_idx]] + strat_ps[:focal_idx] + strat_ps[focal_idx+1:] for focal_idx in range(n_s)]
 
-        # probability of each possible strategy-count outcome in full_strat_countsV.
-        ZM = list()
+        # probability of each possible strategy-count outcome in full_strat_countsV * g_i/n
+        HM = list()
         for pV in pM:
             P = self.calc_P(pV, idx_omit)
-            ZV = list(P @ np.array(self.F))
-            ZM.append(ZV)
+            HV = list(P @ np.array(self.F))
+            HM.append(HV)
 
 
         # calculate the rate of change of each focal strategy
@@ -460,21 +461,21 @@ class ModelBase(metaclass=abc.ABCMeta):
             payoffM = [[self.payoff(stratV, strat_counts) for strat_counts in full_strat_countsV] for stratV in stratM]
 
 
-        # \pi_i(k) Z(s_i, k) terms 
-        pi_ZV = [ sum( payoff* Z for payoff, Z in zip(payoffV, ZV) ) for payoffV, ZV in zip(payoffM, ZM) ]
+        # \pi_i(k) H(s_i, k) terms 
+        pi_HV = [ sum( payoff* H for payoff, H in zip(payoffV, HV) ) for payoffV, HV in zip(payoffM, HM) ]
 
-        # second part of the deltap equation is always the same, \sum_{i=1}^{n_s} \pi_i(k) Z(s_i, k)
-        second_bit = sum(pi_ZV)
+        # second part of the deltap equation is always the same, \sum_{i=1}^{n_s} \pi_i(k) H(s_i, k)
+        second_bit = sum(pi_HV)
 
         # calculate this delta p according to the main equation
-        deltapV = [ pi_ZV[focal_idx] - strat_ps[focal_idx]*second_bit for focal_idx in range(n_s) ]
+        deltapV = [ pi_HV[focal_idx] - strat_ps[focal_idx]*second_bit for focal_idx in range(n_s) ]
 
         return(deltapV)
 
 
     def calc_P(self, pV, idx_omit=None):
         '''
-        The P matrix that's used to calculate the probability of each strategy outcome, i.e., Z = PF.  
+        The P matrix that's used to calculate the probability of each strategy outcome, i.e., H = PF.  
         This function calculates P using the compressed C and W matrices (coefficients and powers).
 
         Inputs:
@@ -493,7 +494,7 @@ class ModelBase(metaclass=abc.ABCMeta):
 
         P, np.array of floats
             The matrix that converts family partition probabilies (F) into strategy outcome probabilities 
-            (Z)
+            (H)
         '''
 
         if idx_omit == None:
@@ -528,6 +529,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         for row in range(rows):
 
             # match the order of strategy proportions to the order in compressed C and W
+            # this re-indexing of p takes advantage of the fact that the calculations for H_i are identical
             ps = [pV[i] for i in full_row2order[row]]
 
             # get the row of the compressed C and W corresponding to this row of the full strategy-outcomes list
@@ -597,11 +599,11 @@ class ModelBase(metaclass=abc.ABCMeta):
         pM = [[strat_ps[this_idx]] + strat_ps[:this_idx] + strat_ps[this_idx+1:] for this_idx in range(n_s)]
 
         # probability of each possible strategy-count outcome in full_strat_countsV.
-        ZM = list()
+        HM = list()
         for pV in pM:
             P = self.calc_P(pV, idx_omit=None)
-            ZV = list(P @ np.array(self.F))
-            ZM.append(ZV)
+            HV = list(P @ np.array(self.F))
+            HM.append(HV)
 
         # payoffs
         if self.payoffD:
@@ -615,9 +617,9 @@ class ModelBase(metaclass=abc.ABCMeta):
             payoffM = [[self.payoff(stratV, strat_counts) for strat_counts in full_strat_countsV] for stratV in stratM]
 
         # calculate second part of the invasion fitness equation
-        second_bit = sum( sum( payoff * Z 
-            for payoff, Z in zip(payoffV, ZV) ) 
-            for payoffV, ZV in zip(payoffM, ZM) )
+        second_bit = sum( sum( payoff * H 
+            for payoff, H in zip(payoffV, HV) ) 
+            for payoffV, HV in zip(payoffM, HM) )
 
         # NOTE: this could be shortened by observing that the expected payoff for each strategy 
         # is equal to the expected payoff at the steady state. Unecessary to take the average. TODO
@@ -663,7 +665,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         # use P to calculate first bit of invasion fitness
         # ---
 
-        ZV = list(P @ np.array(self.F))
+        HV = list(P @ np.array(self.F))
 
         # get payoffs
         if self.payoffD:
@@ -677,7 +679,7 @@ class ModelBase(metaclass=abc.ABCMeta):
             payoffV = [self.payoff(stratM[focal_idx], strat_counts) for strat_counts in full_strat_countsV]
 
         # first part of the invasion fitness equation
-        first_bit = sum( payoff*Z for payoff, Z in zip(payoffV, ZV) )
+        first_bit = sum( payoff*H for payoff, H in zip(payoffV, HV) )
 
 
         # calculate invasion fitness
@@ -752,7 +754,7 @@ class ModelBase(metaclass=abc.ABCMeta):
         n_s = len(strat_names)
 
 
-        # create ZM, matrix of Z(s_i, k) where i is strategy and k is strategy-count outcome
+        # create HM, matrix of H(s_i, k) where i is strategy and k is strategy-count outcome
         # ---
 
         # the index reorderings depending on the identity of the focal strategy
@@ -768,18 +770,18 @@ class ModelBase(metaclass=abc.ABCMeta):
         pM = [[strat_ps[this_idx]] + strat_ps[:this_idx] + strat_ps[this_idx+1:] for this_idx in range(n_s)]
 
         # probability of each possible strategy-count outcome in full_strat_countsV.
-        ZM = list() # ZM[strategy outcome][focal strategy]
+        HM = list() # HM[strategy outcome][focal strategy]
         for pV in pM:
             P = self.calc_P(pV)
-            ZV = list(P @ np.array(self.F))
-            ZM.append(ZV)
+            HV = list(P @ np.array(self.F))
+            HM.append(HV)
 
 
         # list of all possible strategy outcomes, including outcomes with strategy not present in system 
-        # can include them bc p=0 for those strategies drops them out of Z
+        # can include them bc p=0 for those strategies drops them out of H
         full_strat_countsV = self.full_strat_countsV
 
-        # \sum_{k \in K} \pi_i(k) Z(s_i, k) terms for each focal i
+        # \sum_{k \in K} \pi_i(k) H(s_i, k) terms for each focal i
         # ---
 
         # get payoffs
@@ -794,11 +796,11 @@ class ModelBase(metaclass=abc.ABCMeta):
             payoffM = [[self.payoff(stratV, strat_counts) for strat_counts in full_strat_countsV] for stratV in stratM]
 
         # term in equation
-        sumk_pi_ZV = [ sum( payoff*Z for payoff, Z in zip(payoffV, ZV) ) for payoffV, ZV in zip(payoffM, ZM) ]
+        sumk_pi_HV = [ sum( payoff*H for payoff, H in zip(payoffV, HV) ) for payoffV, HV in zip(payoffM, HM) ]
 
 
-        # \sum_{i=1}^{n_s} \sum_{k \in K} \pi_i(k) Z(s_i, k) is always the same
-        sumi_sumk_pi_Z = sum(sumk_pi_ZV)
+        # \sum_{i=1}^{n_s} \sum_{k \in K} \pi_i(k) H(s_i, k) is always the same
+        sumi_sumk_pi_H = sum(sumk_pi_HV)
 
 
         # identify which strategies are in the system at strat_ps steady state
@@ -819,10 +821,10 @@ class ModelBase(metaclass=abc.ABCMeta):
         deriv_idxs = [ i for i in nzero_idxs if i != remov_idx ]
 
 
-        # calculate each \sum_{k \in K} \pi_i(k) d Z(s_i,k) / d p_y term
+        # calculate each \sum_{k \in K} \pi_i(k) d H(s_i,k) / d p_y term
         # ---
 
-        sumk_pi_dZM = list() # sumk_pi_dZM: entries by focal-strategy, entries of entries by deriv-strategy
+        sumk_pi_dHM = list() # sumk_pi_dHM: entries by focal-strategy, entries of entries by deriv-strategy
 
         for focal_idx in nzero_idxs:
 
@@ -851,30 +853,30 @@ class ModelBase(metaclass=abc.ABCMeta):
             shifted_stratV = stratM[focal_idx] # names of strategies in correct order for this focal index i
             piV = [self.payoff(shifted_stratV, strat_counts) for strat_counts in poss_strat_countsV] # piV[k]
 
-            # \sum_{k \in K} \pi_i(k) d Z(s_i,k) / d p_y for each y
+            # \sum_{k \in K} \pi_i(k) d H(s_i,k) / d p_y for each y
 
-            sumk_pi_dZV = list() # sumk_pi_dZM entries by deriv-strategy
+            sumk_pi_dHV = list() # sumk_pi_dHM entries by deriv-strategy
             for deriv_idx in deriv_idxs:
 
                 shifted_deriv_idx = shifted_idxs.index(deriv_idx)   # new index for what derivative is wrt
 
-                # calculate d Z(s_i, k) / d p_y for each k \in K
+                # calculate d H(s_i, k) / d p_y for each k \in K
                 dP = self.calc_dP(shifted_pV, shifted_deriv_idx, shifted_remov_idx, fsc_idxs)
-                dZV = list(dP @ np.array(self.F)) # dZV[k]
+                dHV = list(dP @ np.array(self.F)) # dHV[k]
 
-                # \sum_{k \in K} \pi_i(k) d Z(s_i,k) / d p_y for this y
-                sumk_pi_dZ = sum(pi*dZ for pi, dZ in zip(piV, dZV))
+                # \sum_{k \in K} \pi_i(k) d H(s_i,k) / d p_y for this y
+                sumk_pi_dH = sum(pi*dH for pi, dH in zip(piV, dHV))
 
                 # append
-                sumk_pi_dZV.append(sumk_pi_dZ)
+                sumk_pi_dHV.append(sumk_pi_dH)
 
-            sumk_pi_dZM.append(sumk_pi_dZV)
+            sumk_pi_dHM.append(sumk_pi_dHV)
 
         # nicer as an array
-        sumk_pi_dZM = np.array(sumk_pi_dZM) # sumk_pi_dZM[focal-strategy, deriv-strategy]
+        sumk_pi_dHM = np.array(sumk_pi_dHM) # sumk_pi_dHM[focal-strategy, deriv-strategy]
 
-        # for each derivative d p_y, the sum over strategies \sum_i (\sum_k \pi_i(k) dZ(s_i,k) / d p_y)
-        sumi_sumk_pi_dZ = np.sum(sumk_pi_dZM, axis=0)
+        # for each derivative d p_y, the sum over strategies \sum_i (\sum_k \pi_i(k) dH(s_i,k) / d p_y)
+        sumi_sumk_pi_dH = np.sum(sumk_pi_dHM, axis=0)
 
 
         # construct the Jacobian
@@ -895,11 +897,11 @@ class ModelBase(metaclass=abc.ABCMeta):
 
                 if focal_idx == deriv_idx:
 
-                    Jac[i, j] = sumk_pi_dZM[i, j] - p*sumi_sumk_pi_dZ[j] - sumi_sumk_pi_Z
+                    Jac[i, j] = sumk_pi_dHM[i, j] - p*sumi_sumk_pi_dH[j] - sumi_sumk_pi_H
 
                 else:
 
-                    Jac[i, j] = sumk_pi_dZM[i, j] - p*sumi_sumk_pi_dZ[j]
+                    Jac[i, j] = sumk_pi_dHM[i, j] - p*sumi_sumk_pi_dH[j]
 
         return Jac
 
@@ -907,7 +909,7 @@ class ModelBase(metaclass=abc.ABCMeta):
     def calc_dP(self, pV, deriv_idx, remov_idx, fsc_idxs=None):
         '''
         Find the partial derivative wrt p_y of the P matrix, the matrix that's used to calculate 
-        the probability of each strategy outcome (i.e., Z = PF), at the steady state provided. The 
+        the probability of each strategy outcome (i.e., H = PF), at the steady state provided. The 
         derivative is useful for finding the Jacobian.
 
         Inputs:
@@ -936,7 +938,7 @@ class ModelBase(metaclass=abc.ABCMeta):
 
         dP, np.array of floats
             The matrix that converts family partition probabilies (F) into the derivative of strategy 
-            outcome probabilities (dZ).
+            outcome probabilities (dH).
         '''
 
         # matrix of coefficients C and powers of p_i used to construct the P matrix, 
