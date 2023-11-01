@@ -1,4 +1,4 @@
-This code was run in Python 3.9.2 and IPython 7.20.0
+These are the important packages to install:
 
 Package             Version
 ------------------- ------------
@@ -10,10 +10,6 @@ scipy               1.6.0
 sympy               1.7.1
 
 
-These modules that are part of Python 3.9.2 were also used:
+Alternatively, you can create the exact same virtual environment I used with
 
-itertools
-math
-os
-sys
-time
+    pip install -r requirements.txt
