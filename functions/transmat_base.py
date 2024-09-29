@@ -6,7 +6,7 @@ import numpy as np
 import itertools as it
 from sympy.utilities.iterables import multiset_permutations
 from copy import deepcopy
-from scipy.special import binom
+# from scipy.special import binom
 
 from family_partn_prob import get_FV_members_recruit, get_FV_members_attract, get_FV_leader_driven
 from utilities import partitionInteger
@@ -268,13 +268,13 @@ class TransmatBase(metaclass=abc.ABCMeta):
 
         B = self.B
         n = self.n
-        m = self.n_s
+        # m = self.n_s
 
 
         # if an index of p was skipped, add a zero to p where needed
         # ---
 
-        if not idx_omit is None:
+        if idx_omit is not None:
 
             # need to add a zero to the p vector at index idx_omit
             p = list(p)
@@ -300,7 +300,7 @@ class TransmatBase(metaclass=abc.ABCMeta):
         # if an index of p was skipped, skip the same in deltap
         # ---
 
-        if not idx_omit is None:
+        if idx_omit is not None:
 
             deltap = list(deltap)
             deltap = deltap[:idx_omit] + deltap[idx_omit+1:]
@@ -397,8 +397,13 @@ class TransmatBase(metaclass=abc.ABCMeta):
         J = np.zeros((m-1, m-1))
 
         for col in range(m-1):
-
-            derivs = [self.calc_d_Epay_dpx(B, ps, row, col) for row in range(m)]
+            derivs = [
+                (n-1) * sum(
+                    np.prod([ps[j] for j in js]) * (B[tuple([row] + list(js) + [col])] - B[tuple([row] + list(js) + [m-1])])
+                    for js in it.product(range(m), repeat=n-2)
+                )
+                for row in range(m)
+            ]
             pi_derivs = [ps[row] * derivs[row] for row in range(m)]
             sum_pi_derivs = sum(pi_derivs)
 
@@ -407,105 +412,6 @@ class TransmatBase(metaclass=abc.ABCMeta):
                 J[row, col] = ps[row]*(derivs[row] - sum_pi_derivs)
 
         return J
-
-
-    def calc_d_Epay_dpx(self, B, ps, u0, x):
-        '''
-        Calculate the derivative of the expected payoff to a u0 strategist wrt the proportion of x-strategists
-        in the population
-
-            $$ \frac{\partial \overline{\pi}_{u_0}}{\partial p_x}$$
-
-        This calculation is called by calc_jacobian() to calculate the Jacobian matrix and ultimately the
-        stability of a steady state.
-
-        Inputs:
-        ---
-
-        B, matrix of size l^n where l <= m
-            The transformed payoff matrix for only those l strategies present at the steady state.
-
-        ps, list of floats
-            The population proportion of each strategy at the steady state.
-
-        u0, integer
-            The strategy whose expected payoff we are finding the derivative
-
-        x, integer
-            The strategy whose proportion in the population the derivative is being found with respect to
-
-        Outputs:
-        ---
-
-        deriv, float
-            The value of the derivative, \frac{\partial \overline{\pi}_{u_0}}{\partial p_x}
-        '''
-
-        B_shape = B.shape
-        m = B_shape[0]
-        n = len(B_shape)
-
-        deriv = 0
-        for kappa in range(1, n):
-
-            coeff = binom(n-1, kappa)*kappa
-
-            for v_others in it.product(range(m-1), repeat=kappa-1):
-
-                v = [u0] + list(v_others)
-                beta = self.calc_beta(B, v, x)
-                deriv += coeff*beta*np.prod([ps[vi] for vi in v[1:]])
-
-        return deriv
-
-
-    def calc_beta(self, B, v, x):
-        '''
-        Calculates beta, which is a particular sum of elements of the transformed matrix B that is
-        needed to calculate the Jacobian matrix. Please see the supplementary information of the paper
-        for full details, but it is basically a combinatorial problem to find this quantity.
-
-        This calculation is called by calc_d_Epay_dpx(), which in turn is called by calc_jacobian() 
-        to calculate the Jacobian matrix and ultimately the stability of a steady state.
-
-        Inputs:
-        ---
-
-        B, matrix of size l^n where l <= m
-            The transformed payoff matrix for only those l strategies present at the steady state.
-
-        v, list of integers
-            These are indices of a sum corresponding to strategies played in the group and also elements
-            of the matrix B.
-
-        x, integer
-            The same x as used in calc_d_Epay_dpx(). It is the strategy whose proportion in the population 
-            the derivative is being found with respect to.
-
-        Outputs:
-        ---
-
-        beta, float
-            A quantity needed to calculate elements of the Jacobian matrix
-        '''
-
-        kappa = len(v)
-
-        B_shape = B.shape
-        m = B_shape[0]
-        n = len(B_shape)
-
-        beta = 0
-        for h in range(0, kappa+1):
-
-            sign = (-1)**h
-
-            for inner_js in it.combinations(list(range(1, kappa)) + [None], kappa-h):
-
-                g = [v[0]] + [x if j is None else v[j] for j in inner_js] + [m-1]*(n-(kappa-h)-1)
-                beta += sign*B[tuple(g)]
-
-        return beta
 
 
     def calc_invasion_fitness(self, focal_name, strat_ps):
