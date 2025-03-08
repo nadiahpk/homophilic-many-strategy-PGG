@@ -33,7 +33,7 @@ plt.scatter(df['group_size'], df['transmat_overhead'] + df['transmat_steadystate
 plt.plot(df['group_size'], df['transmat_overhead'] + df['transmat_steadystate'], ls='solid', color='red')
 
 # the total using the new direct approach approach
-plt.scatter(df['group_size'], df['newdirect_total'], s=20, color='blue', label='direct approach total')
+plt.scatter(df['group_size'], df['newdirect_total'], s=20, color='blue', label='whole-group approach total')
 plt.plot(df['group_size'], df['newdirect_total'], ls='solid', color='blue')
 
 # decorations
