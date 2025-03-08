@@ -17,6 +17,8 @@ Humans often cooperate in groups with friends and family members with varying de
 
 **Year**: 2025
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14991697.svg)](https://zenodo.org/records/14991697)
+
 ## License
 
 This is free and unencumbered software released into the public domain.
